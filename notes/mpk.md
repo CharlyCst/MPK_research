@@ -3,6 +3,7 @@
 MPK is a __userspace__ mechanism to control page table permissions. Permissions set on a per thread basis (permissions are stored inside a _protection key rights register_ `PKRU`) and apply to a group of page tables associated to a key instead of a single page. 
 
 A key can be associated to RW, R or no access, execution cannot be restricted. The final permission is the intersection of thread local key permission and process permissions on the page table. 
+Protections keys are 4 bits long (because there is 16 groups).
 
 A note on performance: unpriviligied instruction (WRPKRU) that executes in less than 20 cycles, i.e. 10 to 100 times faster than a syscall, plus there is no TLB flush.
 
@@ -13,15 +14,16 @@ PKRU is a 32 bits register, each protection key is associated with two bits:
 Two ASM instructions are available to interact with PKRU:
 - WRPKRU: overwrite PKRU with EAX, the two registers ECX and EDX must be filled with 0.
 - RDPKRU: return the current value of PKRU inside EAX, the ECX register must be filled with 0 while EDX will be overwritted with 0.
-
-Protections keys are 4 bits long (because there is 16 groups).
+The actual usage of ECX and EDX is undocumented.
 
 Three system calls directly interact with pkeys:
-- int pkey_alloc(unsigned long flags, unsigned long ini_access_rights)
-- int pkey_free(int pkey)
-- int pkey_mprotect(unsigned long start, size_t len, unsigned long protection, int pkey)
+```C
+int pkey_alloc(unsigned long flags, unsigned long ini_access_rights);
+int pkey_free(int pkey);
+int pkey_mprotect(unsigned long start, size_t len, unsigned long protection, int pkey);
+```
 
-Because kernel mode is required to modify page table entries (PTE), the system call `pkey_mprotect` is required to tag memory pages with a key group.
+Because kernel mode is required to modify page table entries (PTE), the system call `pkey_mprotect` is required to tag memory pages with a key group. `pkey_mprotect` is an extension of `mprotect`: it allows to update protection right of page while setting the key group.
 
 # libmpk
 
