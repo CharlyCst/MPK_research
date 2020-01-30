@@ -1,16 +1,18 @@
 # A few notes on MPK
 
-MPK is a __userspace__ mechanism to control page table permissions. Permissions set on a per thread basis (permissions are stored inside a _protection key rights register_ `PKRU`) and apply to a group of page tables instead of a single page. 
+MPK is a __userspace__ mechanism to control page table permissions. Permissions set on a per thread basis (permissions are stored inside a _protection key rights register_ `PKRU`) and apply to a group of page tables associated to a key instead of a single page. 
 
 A key can be associated to RW, R or no access, execution cannot be restricted. The final permission is the intersection of thread local key permission and process permissions on the page table. 
 
 A note on performance: unpriviligied instruction (WRPKRU) that executes in less than 20 cycles, i.e. 10 to 100 times faster than a syscall, plus there is no TLB flush.
 
 PKRU is a 32 bits register, each protection key is associated with two bits:
-- Bit _2i_ block any data access if set to 1 (access disable bit)
-- Bit _2i+1_ block any write if set to 1 (write disable bit)
+- Bit _2i_ block any data access if set to 1 (access disable bit, or AD)
+- Bit _2i+1_ block any write if set to 1 (write disable bit, or WD)
 
-When using RDPKRU and WRPKRU to read and write PKRU the register ECX must be set to 0.
+Two ASM instructions are available to interact with PKRU:
+- WRPKRU: overwrite PKRU with EAX, the two registers ECX and EDX must be filled with 0.
+- RDPKRU: return the current value of PKRU inside EAX, the ECX register must be filled with 0 while EDX will be overwritted with 0.
 
 Protections keys are 4 bits long (because there is 16 groups).
 
@@ -19,6 +21,7 @@ Three system calls directly interact with pkeys:
 - int pkey_free(int pkey)
 - int pkey_mprotect(unsigned long start, size_t len, unsigned long protection, int pkey)
 
+Because kernel mode is required to modify page table entries (PTE), the system call `pkey_mprotect` is required to tag memory pages with a key group.
 
 # libmpk
 
