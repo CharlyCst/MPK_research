@@ -27,26 +27,55 @@ Because kernel mode is required to modify page table entries (PTE), the system c
 
 # libmpk
 
+The aim of libmpk is to prevent an adversary from reading from or writing in sensitive pages through memory corruption vulnerabilities. 
+
+A program relying on libmpk should only use MPK through libmpk.
+
+## Limitation of MPK
+
 libmpk addresses these three main issues:
 - Vulenerability to protection-key-use-after-free: ???
 - Limited number of protection key (16)
 - Incompatible with `mprotec)` 
 
-## protection-key-use-after-free:
+### protection-key-use-after-free:
 
 My current understanting is that if a page is tagged with key 6 for instance, then key 6 is freed by `pkey_free` and reallocated later, then the page is still tagged with key 6 which may cause undesired access right restriction.
 
-## Limited number of protection key
+### Limited number of protection key
 
 Only 16 keys per process, any attempt to alocate extra keys with `pkey_alloc` will fail.
 
-## Incompatible with `mprotect`
+### Incompatible with `mprotect`
 
 `mprotect` changes protection for ALL THE THREADS of the calling process, whereas MPK update protections on a thread basis.
+
+## Proposed solution
+
+### API
+
+- `mpk_init(evict_rate)`
+- `mpk_mmap(vkey, addr, len, prot, flags, fd, offset)`
+- `mpk_munmap(vkey)`
+- `mpk_begin(vkey, prot)`
+- `mpk_end(vkey)`
+- `mpk_mprotect(vkey, prot)`
+- `mpk_malloc(vkey, size)`
+- `mpk_free(size)`
+
+`mpk_init` must be called at the beginning of the program, it allocates all the virtual key from the kernel.
+
+Virtual keys are integers chosen by the developer.
+
+libmpk maintains the mappings between virtual keys and pages to avoid scanning through pages with `mpk_munmap`.
+
+### Key virtualization
+
+libmpk enables an application to use more than 16 page groups by virtualizing hardware keys. The application is prohibited from manipulating hardware keys.
 
 # To be investigated
 
 Group 0 has a special purpose: Which one ???
-Linux syscalls `pkey_alloc` and `pkey_free`
 Thread or hyperthread? Is the register PKRU common to both thread of an hyperthread?
 The PKRU register is XSAVE-managed and can thus be read or written by instruction in the XSAVE feature set - What does that mean???
+Is there a reason why libmpk insist on the fact that virtual keys should be constant?
