@@ -73,6 +73,16 @@ libmpk maintains the mappings between virtual keys and pages to avoid scanning t
 
 libmpk enables an application to use more than 16 page groups by virtualizing hardware keys. The application is prohibited from manipulating hardware keys.
 
+Virtual keys are mapped either to a physical key or to nothing (null). When the application call libmpk with a virtual key, if it is mapped to a physical key permissions can be updated through MPK, otherwise either libmpk evict another key (and update the mappings with `pkey_mprotect`) or does not update the cache and simply call `mprotect`. The frequency of eviction is determined by the eviction rate.
+
+libmpk always use a physical key for thread logal permissions (`mpk_begin`), thus the call to `mpk_begin` may rise an error if no physical keys are available (all used by `mpk_begin`).
+
+libmpk reserves one key for execute only memory (which the `mprotect` also achieve through MPK), and use it to map all execute only memory. This key is not freed until at lest one page is execute only.
+
+### Security
+
+libmpk maps its metadata into two virtual pages: one with read right for user code and one with write access for libmpk kernel code.
+
 # To be investigated
 
 Group 0 has a special purpose: Which one ???
