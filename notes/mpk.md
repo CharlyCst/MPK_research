@@ -69,6 +69,8 @@ Virtual keys are integers chosen by the developer.
 
 libmpk maintains the mappings between virtual keys and pages to avoid scanning through pages with `mpk_munmap`.
 
+libmpk offer a proper execute only permission (synchronized among threads, contrary to `mprotect` for execute only) and better performances overall.
+
 ### Key virtualization
 
 libmpk enables an application to use more than 16 page groups by virtualizing hardware keys. The application is prohibited from manipulating hardware keys.
@@ -78,6 +80,14 @@ Virtual keys are mapped either to a physical key or to nothing (null). When the 
 libmpk always use a physical key for thread logal permissions (`mpk_begin`), thus the call to `mpk_begin` may rise an error if no physical keys are available (all used by `mpk_begin`).
 
 libmpk reserves one key for execute only memory (which the `mprotect` also achieve through MPK), and use it to map all execute only memory. This key is not freed until at lest one page is execute only.
+
+### Key synchronisation
+
+Because MPK is thread local, in order to emulate `mprotect` it is necessary to synchronise the value of PKRU among threads.
+
+To increase performances PKRU is updates lazily: if a thread is not currently scheduled it does not need the up to date PKRU. Synchronization is forced for thread in userspace while a hook is created for sleeping and kernel mode thread, it will be invoked right before jumping to user space again.
+
+In linux this can be achieved by sending a rescheduling interupt and adding a callback (with `task_work_add()`). 
 
 ### Security
 
@@ -89,3 +99,6 @@ Group 0 has a special purpose: Which one ???
 Thread or hyperthread? Is the register PKRU common to both thread of an hyperthread?
 The PKRU register is XSAVE-managed and can thus be read or written by instruction in the XSAVE feature set - What does that mean???
 Is there a reason why libmpk insist on the fact that virtual keys should be constant?
+How to ensure that the application can not use WRPKRU and RDPKRU?
+How to run part of libmpk into kernel mode?
+How to create hooks?
