@@ -25,6 +25,20 @@ func main() {
 	} else {
 		fmt.Printf("Allocated pkey: %d\n", pkey)
 	}
+
+	pkey, err = pkeyAlloc()
+	if err != nil {
+		fmt.Printf("Failed to allocate pkey, returned: %d\n", pkey)
+	} else {
+		fmt.Printf("Allocated pkey: %d\n", pkey)
+	}
+
+	err = pkeyFree(pkey)
+	if err != nil {
+		fmt.Println("Could not free pkey")
+	} else {
+		fmt.Println("pkey has been deallocated")
+	}
 }
 
 // Warning: doesn't work
@@ -43,4 +57,12 @@ func pkeyAlloc() (int, error) {
 		return (int)(pkey), errors.New("Failled to allocate pkey")
 	}
 	return (int)(pkey), nil
+}
+
+func pkeyFree(pkey int) error {
+	result, _, _ := syscall.Syscall(sysPkeyFree, (uintptr)(pkey), 0, 0)
+	if result != 0 {
+		return errors.New("Could not free pkey")
+	}
+	return nil
 }
