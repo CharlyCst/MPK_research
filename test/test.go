@@ -33,7 +33,4 @@ func main() {
 	} else {
 		fmt.Println("pkey has been deallocated")
 	}
-
-	fmt.Println(mpk.AllRightsPKRU)
-	fmt.Println(mpk.AllRightsPKRU.Update((mpk.Pkey)(1), mpk.ProtX))
 }
