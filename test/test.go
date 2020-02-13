@@ -28,8 +28,7 @@ func main() {
 	}
 
 	mpk.WritePKRU(1<<2 + 1<<3) // set execute only on key 1
-	fmt.Printf("Reading MKRU: %d\n", mpk.ReadPKRU())
-	fmt.Println(1<<2 + 1<<3)
+	fmt.Printf("Reading PKRU: %b\n", mpk.ReadPKRU())
 
 	err = mpk.PkeyFree(pkey)
 	if err != nil {
