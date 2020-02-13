@@ -7,27 +7,33 @@ import (
 )
 
 func main() {
-	pkey, err := mpk.PkeyAlloc()
+	pkey1, err := mpk.PkeyAlloc()
 	if err != nil {
-		fmt.Printf("Failed to allocate pkey, returned: %d\n", pkey)
+		fmt.Printf("Failed to allocate pkey, returned: %d\n", pkey1)
 	} else {
-		fmt.Printf("Allocated pkey: %d\n", pkey)
+		fmt.Printf("Allocated pkey: %d\n", pkey1)
 	}
 
-	pkey, err = mpk.PkeyAlloc()
+	pkey2, err := mpk.PkeyAlloc()
 	if err != nil {
-		fmt.Printf("Failed to allocate pkey, returned: %d\n", pkey)
+		fmt.Printf("Failed to allocate pkey, returned: %d\n", pkey2)
 	} else {
-		fmt.Printf("Allocated pkey: %d\n", pkey)
+		fmt.Printf("Allocated pkey: %d\n", pkey2)
 	}
 
-	mpk.WritePKRU(1<<2 + 1<<3) // set execute only on key 1
-	fmt.Printf("Reading PKRU: Ob%032b\n", mpk.ReadPKRU())
+	pkru := mpk.AllRightsPKRU
+	pkru = pkru.Update(pkey1, mpk.ProtX)
+	pkru = pkru.Update(pkey2, mpk.ProtRX)
+	mpk.WritePKRU(pkru)
+	fmt.Println("Reading PKRU:", pkru)
 
-	err = mpk.PkeyFree(pkey)
+	err = mpk.PkeyFree(pkey2)
 	if err != nil {
 		fmt.Println("Could not free pkey")
 	} else {
 		fmt.Println("pkey has been deallocated")
 	}
+
+	fmt.Println(mpk.AllRightsPKRU)
+	fmt.Println(mpk.AllRightsPKRU.Update((mpk.Pkey)(1), mpk.ProtX))
 }
