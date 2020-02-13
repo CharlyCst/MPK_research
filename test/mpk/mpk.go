@@ -73,10 +73,10 @@ func PkeyFree(pkey Pkey) error {
 }
 
 // PkeyMprotect tags pages int [addr, addr + len -1] with the given pkey.
-// Permission on page table can also be update at the same time.
+// --> Currently deactivated: Permission on page table can also be update at the same time.
 // Note that addr must be aligned to a page boundary.
-func PkeyMprotect(addr uintptr, len uint64, prot int, pkey int) error {
-	result, _, _ := syscall.Syscall6(sysPkeyMprotect, addr, uintptr(len), uintptr(prot), uintptr(pkey), 0, 0)
+func PkeyMprotect(addr uintptr, len uint64, pkey Pkey) error {
+	result, _, _ := syscall.Syscall6(sysPkeyMprotect, addr, uintptr(len), 0b111, uintptr(pkey), 0, 0) // pages can be RWX
 	if result != 0 {
 		return errors.New("Could not update memory access rights")
 	}

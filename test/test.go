@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"unsafe"
 
 	"test/mpk"
 )
@@ -21,11 +22,21 @@ func main() {
 		fmt.Printf("Allocated pkey: %d\n", pkey2)
 	}
 
+	var x int
+	x = 1
+	fmt.Println("Declaring var x with value:", x)
+
 	pkru := mpk.AllRightsPKRU
 	pkru = pkru.Update(pkey1, mpk.ProtX)
 	pkru = pkru.Update(pkey2, mpk.ProtRX)
 	mpk.WritePKRU(pkru)
 	fmt.Println("Reading PKRU:", mpk.ReadPKRU())
+
+	err = mpk.PkeyMprotect((uintptr(unsafe.Pointer(&x))>>12)<<12, 0x1000, pkey1)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	x = 2
 
 	err = mpk.PkeyFree(pkey2)
 	if err != nil {
