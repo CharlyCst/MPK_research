@@ -25,7 +25,7 @@ func main() {
 	pkru = pkru.Update(pkey1, mpk.ProtX)
 	pkru = pkru.Update(pkey2, mpk.ProtRX)
 	mpk.WritePKRU(pkru)
-	fmt.Println("Reading PKRU:", pkru)
+	fmt.Println("Reading PKRU:", mpk.ReadPKRU())
 
 	err = mpk.PkeyFree(pkey2)
 	if err != nil {
