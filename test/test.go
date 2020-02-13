@@ -36,6 +36,7 @@ func main() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+	fmt.Println("Memory tagged with key 1")
 	x = 2
 
 	err = mpk.PkeyFree(pkey2)
