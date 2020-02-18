@@ -3,11 +3,72 @@ package main
 import (
 	"fmt"
 	"unsafe"
+	"gosb"
+	"runtime"
+	"errors"
 
 	"test/mpk"
+	"test/foo"
 )
 
 func main() {
+	gosb.Gosandbox()
+	x := sandbox["", ""] () {
+		foo.Foo()
+	}
+	// fmt.Println(x)
+
+	pkey, err := mpk.PkeyAlloc()
+	if err != nil {
+		fmt.Println("Could not allocate pkey")
+		return
+	}
+
+	pkru := mpk.AllRightsPKRU
+	mpk.WritePKRU(pkru)
+
+	fmt.Println()
+	x()
+	fmt.Println()
+	err = tagPackage("test/foo", pkey)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	pkru = pkru.Update(pkey, mpk.ProtX)
+	mpk.WritePKRU(pkru)
+
+	x()
+	fmt.Println()
+}
+
+func tagPackage(packageName string, pkey mpk.Pkey) error {
+	id, ok := runtime.PkgToId()[packageName]
+	if !ok {
+		return errors.New("Could not find package")
+	}
+
+	for _, bloat := range runtime.PkgBloated() {
+		if bloat.Id == id {
+			// fmt.Println(bloat)
+			for _, pkgInfo := range bloat.Bloating.Relocs {
+				if pkgInfo.Addr != 0 && pkgInfo.Size != 0 {
+					fmt.Printf("%#x  %#x\n", pkgInfo.Addr, pkgInfo.Size)
+					err := mpk.PkeyMprotect(uintptr(pkgInfo.Addr), pkgInfo.Size, pkey)
+					if err != nil {
+						return errors.New("Could not mprotect package memory")
+					}
+				}
+			}
+		}
+	}
+
+
+	return nil
+}
+
+func testMPK() {
 	pkey1, err := mpk.PkeyAlloc()
 	if err != nil {
 		fmt.Printf("Failed to allocate pkey, returned: %d\n", pkey1)
@@ -34,8 +95,8 @@ func main() {
 	x = 2
 
 	pkru := mpk.AllRightsPKRU
-	pkru = pkru.Update(pkey1, mpk.ProtX)
-	pkru = pkru.Update(pkey2, mpk.ProtRX)
+	// pkru = pkru.Update(pkey1, mpk.ProtX)
+	// pkru = pkru.Update(pkey2, mpk.ProtRX)
 	mpk.WritePKRU(pkru)
 	fmt.Println("Reading PKRU:", mpk.ReadPKRU())
 
