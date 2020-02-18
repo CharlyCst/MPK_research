@@ -1,4 +1,5 @@
-main: test
+main:
+	gosb build
 	./test
 
 test: test.o 
