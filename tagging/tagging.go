@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"sort"
 
 	"github.com/KyleBanks/depth"
 )
@@ -61,7 +60,7 @@ func NewPkg(name string, id int) *Pkg {
 
 func main() {
 	// Initialize the global set of package, the strings package and a sandbox using strings
-	pkgSet := make(map[int]*Pkg)
+	pkgSet := make(map[int]*Pkg) // !! Important: Packages must be zero indexed !!!
 
 	pkgIO := NewPkg("io", 0)
 	pkgRuntime := NewPkg("runtime", 1)
@@ -94,27 +93,76 @@ func main() {
 }
 
 func tagPackages(pkgSet map[int]*Pkg, sandboxes ...*Sandbox) {
-	for _, sb := range sandboxes {
-		for _, pkg := range pkgSet {
-			_, isInSb := sb.Deps[pkg.ID]
+	// for _, sb := range sandboxes {
+	// 	for _, pkg := range pkgSet {
+	// 		_, isInSb := sb.Deps[pkg.ID]
+	// 		if isInSb {
+	// 			pkg.alwaysExcluded = false
+	// 		} else {
+	// 			pkg.alwaysIncluded = false
+	// 		}
+	// 	}
+	// }
+
+	// for _, sb := range sandboxes {
+	// 	for _, pkg := range sb.Deps {
+	// 		if !pkg.alwaysIncluded && !pkg.alwaysExcluded {
+	// 			sb.depsToCluster = append(sb.depsToCluster, pkg.ID)
+	// 		}
+	// 	}
+	// 	sort.Ints(sb.depsToCluster)
+
+	// 	fmt.Println(sb.depsToCluster)
+	// }
+
+	n := len(pkgSet)
+	pkgAppearsIn := make(map[int][]int, n)
+	for i := 0; i < n; i++ {
+		pkgAppearsIn[i] = make([]int, 0)
+	}
+	for i := 0; i < n; i++ {
+		for _, sb := range sandboxes {
+			_, isInSb := sb.Deps[i]
 			if isInSb {
-				pkg.alwaysExcluded = false
-			} else {
-				pkg.alwaysIncluded = false
+				pkgAppearsIn[i] = append(pkgAppearsIn[i], sb.ID)
 			}
 		}
 	}
 
-	for _, sb := range sandboxes {
-		for _, pkg := range sb.Deps {
-			if !pkg.alwaysIncluded && !pkg.alwaysExcluded {
-				sb.depsToCluster = append(sb.depsToCluster, pkg.ID)
+	pkgGroups := make([][]int, 0)
+	for len(pkgAppearsIn) > 0 {
+		group := make([]int, 0)
+		_, groupA := popMap(pkgAppearsIn)
+		for id, groupB := range pkgAppearsIn {
+			if groupEqual(groupA, groupB) {
+				group = append(group, id)
 			}
 		}
-		sort.Ints(sb.depsToCluster)
-
-		fmt.Println(sb.depsToCluster)
+		for _, id := range group {
+			delete(pkgAppearsIn, id)
+		}
+		pkgGroups = append(pkgGroups, group)
 	}
+	fmt.Println(pkgGroups)
+}
+
+func groupEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func popMap(m map[int][]int) (int, []int) {
+	for id, group := range m {
+		return id, group
+	}
+	return -1, nil
 }
 
 func crawlPackages(rootPackage string, pkgSet map[int]*Pkg, sandboxes ...*Sandbox) {
