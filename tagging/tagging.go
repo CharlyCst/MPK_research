@@ -3,18 +3,30 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
 
 	"github.com/KyleBanks/depth"
 )
 
 // Sandbox represents an isolated execution environment, with a name and a map of dependencies
 type Sandbox struct {
-	Name string
-	ID   int
-	Deps map[int]*Pkg // Pkg.ID set
+	Name          string
+	ID            int
+	Deps          map[int]*Pkg // Pkg.ID set
+	depsToCluster []int
 }
 
-func (sb Sandbox) String() string {
+// NewSandbox returns a fresh sandbox
+func NewSandbox(name string, id int) *Sandbox {
+	return &Sandbox{
+		Name:          name,
+		ID:            id,
+		Deps:          make(map[int]*Pkg),
+		depsToCluster: make([]int, 0),
+	}
+}
+
+func (sb *Sandbox) String() string {
 	deps := ""
 	i := 0
 	for _, dep := range sb.Deps {
@@ -50,34 +62,34 @@ func NewPkg(name string, id int) *Pkg {
 func main() {
 	// Initialize the global set of package, the strings package and a sandbox using strings
 	pkgSet := make(map[int]*Pkg)
+
 	pkgIO := NewPkg("io", 0)
 	pkgRuntime := NewPkg("runtime", 1)
+	pkgSync := NewPkg("sync", 2)
 
-	sandboxA := Sandbox{
-		Name: "sb_A",
-		ID:   0,
-		Deps: make(map[int]*Pkg),
-	}
-	sandboxB := Sandbox{
-		Name: "sb_B",
-		ID:   1,
-		Deps: make(map[int]*Pkg),
-	}
+	sandboxA := NewSandbox("sb_A", 0)
+	sandboxB := NewSandbox("sb_B", 1)
+	sandboxC := NewSandbox("sb_C", 2)
 
 	pkgSet[0] = pkgIO
 	pkgSet[1] = pkgRuntime
+	pkgSet[2] = pkgSync
 	sandboxA.Deps[0] = pkgIO
 	sandboxB.Deps[1] = pkgRuntime
+	sandboxC.Deps[2] = pkgSync
 	// pkgIO.usedIn[0] = &sandboxA
 
-	crawlPackages("strings", pkgSet, &sandboxA, &sandboxB)
+	crawlPackages("strings", pkgSet, sandboxA, sandboxB, sandboxC)
 
 	fmt.Println(sandboxA)
 	fmt.Println(sandboxB)
+	fmt.Println(sandboxC)
 
-	tagPackages(pkgSet, &sandboxA, &sandboxB)
+	tagPackages(pkgSet, sandboxA, sandboxB, sandboxC)
+
+	fmt.Println()
 	for _, pkg := range pkgSet {
-		fmt.Printf("%- 25s | included: %t, excluded: %t\n", pkg.Name, pkg.alwaysIncluded, pkg.alwaysExcluded)
+		fmt.Printf("%2d %- 25s | included: %-5t | excluded: %-5t\n", pkg.ID, pkg.Name, pkg.alwaysIncluded, pkg.alwaysExcluded)
 	}
 }
 
@@ -91,6 +103,17 @@ func tagPackages(pkgSet map[int]*Pkg, sandboxes ...*Sandbox) {
 				pkg.alwaysIncluded = false
 			}
 		}
+	}
+
+	for _, sb := range sandboxes {
+		for _, pkg := range sb.Deps {
+			if !pkg.alwaysIncluded && !pkg.alwaysExcluded {
+				sb.depsToCluster = append(sb.depsToCluster, pkg.ID)
+			}
+		}
+		sort.Ints(sb.depsToCluster)
+
+		fmt.Println(sb.depsToCluster)
 	}
 }
 
@@ -118,8 +141,8 @@ func crawlPackages(rootPackage string, pkgSet map[int]*Pkg, sandboxes ...*Sandbo
 	}
 
 	for _, dep := range t.Root.Deps {
-		pkgQueue := append(pkgQueue, dep)
-		sbQueue := append(sbQueue, 0)
+		pkgQueue = append(pkgQueue, dep)
+		sbQueue = append(sbQueue, 0)
 
 		for len(pkgQueue) > 0 {
 			lastIndex := len(pkgQueue) - 1
@@ -156,12 +179,10 @@ func crawlPackages(rootPackage string, pkgSet map[int]*Pkg, sandboxes ...*Sandbo
 				sb.Deps[id] = pkgStruct
 			}
 
-			// fmt.Print(pkg.Name, " | ")
+			// Add all package dependencies to the queue
 			for _, pkgDep := range pkg.Deps {
-				// fmt.Print(" ", pkgDep.Name)
 				pkgQueue = append(pkgQueue, pkgDep)
 			}
-			// fmt.Println()
 
 			// Remove out of scope sandboxes
 			if len(pkg.Deps) == 0 {
