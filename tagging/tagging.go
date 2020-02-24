@@ -79,9 +79,6 @@ func main() {
 	pkgSet[0] = pkgIO
 	pkgSet[1] = pkgRuntime
 	pkgSet[2] = pkgSync
-	// sandboxA.Deps[0] = pkgIO
-	// sandboxB.Deps[1] = pkgRuntime
-	// sandboxC.Deps[2] = pkgSync
 
 	crawlPackages("strings", pkgSet, sandboxA, sandboxB, sandboxC)
 
@@ -98,28 +95,6 @@ func main() {
 }
 
 func tagPackages(pkgSet map[int]*Pkg, sandboxes ...*Sandbox) {
-	// for _, sb := range sandboxes {
-	// 	for _, pkg := range pkgSet {
-	// 		_, isInSb := sb.Deps[pkg.ID]
-	// 		if isInSb {
-	// 			pkg.alwaysExcluded = false
-	// 		} else {
-	// 			pkg.alwaysIncluded = false
-	// 		}
-	// 	}
-	// }
-
-	// for _, sb := range sandboxes {
-	// 	for _, pkg := range sb.Deps {
-	// 		if !pkg.alwaysIncluded && !pkg.alwaysExcluded {
-	// 			sb.depsToCluster = append(sb.depsToCluster, pkg.ID)
-	// 		}
-	// 	}
-	// 	sort.Ints(sb.depsToCluster)
-
-	// 	fmt.Println(sb.depsToCluster)
-	// }
-
 	n := len(pkgSet)
 	pkgAppearsIn := make(map[int][]int, n)
 	for i := 0; i < n; i++ {
