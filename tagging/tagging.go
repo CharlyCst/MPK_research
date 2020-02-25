@@ -9,11 +9,11 @@ import (
 
 // Sandbox represents an isolated execution environment, with a name and a map of dependencies
 type Sandbox struct {
-	Name          string
-	ID            int
-	Deps          map[int]*Pkg // Complete dependencies
-	directDeps    map[int]*Pkg // Direct dependencies
-	depsToCluster []int
+	Name       string
+	ID         int
+	Deps       map[int]*Pkg // Induced dependencies
+	directDeps map[int]*Pkg // Direct dependencies
+	KeyGroups  []int
 }
 
 // NewSandbox returns a fresh sandbox
@@ -23,11 +23,11 @@ func NewSandbox(name string, id int, deps ...*Pkg) *Sandbox {
 		directDeps[dep.ID] = dep
 	}
 	return &Sandbox{
-		Name:          name,
-		ID:            id,
-		Deps:          make(map[int]*Pkg),
-		directDeps:    directDeps,
-		depsToCluster: make([]int, 0),
+		Name:       name,
+		ID:         id,
+		Deps:       make(map[int]*Pkg),
+		directDeps: directDeps,
+		KeyGroups:  make([]int, 0),
 	}
 }
 
@@ -41,32 +41,27 @@ func (sb *Sandbox) String() string {
 		deps += dep.Name
 		i++
 	}
-	return fmt.Sprintf("<Sandbox %s, ID %d, deps [%s]>", sb.Name, sb.ID, deps)
+	return fmt.Sprintf("<Sandbox %s, ID %d, keys %v, deps [%s]>", sb.Name, sb.ID, sb.KeyGroups, deps)
 }
 
 // Pkg represents a package
 type Pkg struct {
-	Name           string
-	ID             int
-	alwaysIncluded bool
-	alwaysExcluded bool
-	// usedIn         map[int]*Sandbox // Sandbox.ID set
+	Name string
+	ID   int
 }
 
 // NewPkg initializes a fresh package
 func NewPkg(name string, id int) *Pkg {
 	return &Pkg{
-		Name:           name,
-		ID:             id,
-		alwaysIncluded: true,
-		alwaysExcluded: true,
-		// usedIn:         make(map[int]*Sandbox),
+		Name: name,
+		ID:   id,
 	}
 }
 
 func main() {
 	// Initialize the global set of package, the strings package and a sandbox using strings
-	pkgSet := make(map[int]*Pkg) // !! Important: Packages must be zero indexed !!!
+	pkgSet := make(map[int]*Pkg)     // !! Important: Packages must be zero indexed !!!
+	sandboxes := make([]*Sandbox, 0) // !! Important: Sanboxes ID must be equal to their index in this array !!
 
 	pkgIO := NewPkg("io", 0)
 	pkgRuntime := NewPkg("runtime", 1)
@@ -76,27 +71,28 @@ func main() {
 	sandboxB := NewSandbox("sb_B", 1, pkgRuntime)
 	sandboxC := NewSandbox("sb_C", 2, pkgSync)
 
+	sandboxes = append(sandboxes, sandboxA, sandboxB, sandboxC)
+
 	pkgSet[0] = pkgIO
 	pkgSet[1] = pkgRuntime
 	pkgSet[2] = pkgSync
 
-	crawlPackages("strings", pkgSet, sandboxA, sandboxB, sandboxC)
-
-	fmt.Println(sandboxA)
-	fmt.Println(sandboxB)
-	fmt.Println(sandboxC)
-
-	tagPackages(pkgSet, sandboxA, sandboxB, sandboxC)
+	crawlPackages("strings", pkgSet, sandboxes)
+	tagPackages(pkgSet, sandboxes)
 
 	fmt.Println()
 	for _, pkg := range pkgSet {
-		fmt.Printf("%2d %- 25s | included: %-5t | excluded: %-5t\n", pkg.ID, pkg.Name, pkg.alwaysIncluded, pkg.alwaysExcluded)
+		fmt.Printf("%3d %- 25s\n", pkg.ID, pkg.Name)
+	}
+	fmt.Println()
+	for _, sb := range sandboxes {
+		fmt.Println(sb)
 	}
 }
 
-func tagPackages(pkgSet map[int]*Pkg, sandboxes ...*Sandbox) {
+func tagPackages(pkgSet map[int]*Pkg, sandboxes []*Sandbox) {
 	n := len(pkgSet)
-	pkgAppearsIn := make(map[int][]int, n)
+	pkgAppearsIn := make(map[int][]int, n) // map packages to the list of sandboxes they appear in
 	for i := 0; i < n; i++ {
 		pkgAppearsIn[i] = make([]int, 0)
 	}
@@ -109,17 +105,22 @@ func tagPackages(pkgSet map[int]*Pkg, sandboxes ...*Sandbox) {
 		}
 	}
 
+	// KeyToSandboxes := make(map[int]map[int]struct{}) // Map key to set of sandboxes
 	pkgGroups := make([][]int, 0)
 	for len(pkgAppearsIn) > 0 {
+		key := len(pkgGroups)
 		group := make([]int, 0)
-		_, groupA := popMap(pkgAppearsIn)
-		for id, groupB := range pkgAppearsIn {
-			if groupEqual(groupA, groupB) {
+		_, SbGroupA := popMap(pkgAppearsIn)
+		for id, SbGroupB := range pkgAppearsIn {
+			if groupEqual(SbGroupA, SbGroupB) {
 				group = append(group, id)
 			}
 		}
-		for _, id := range group {
-			delete(pkgAppearsIn, id)
+		for _, pkgID := range group {
+			delete(pkgAppearsIn, pkgID)
+		}
+		for _, sbID := range SbGroupA {
+			sandboxes[sbID].KeyGroups = append(sandboxes[sbID].KeyGroups, key)
 		}
 		pkgGroups = append(pkgGroups, group)
 	}
@@ -145,7 +146,7 @@ func popMap(m map[int][]int) (int, []int) {
 	return -1, nil
 }
 
-func crawlPackages(rootPackage string, pkgSet map[int]*Pkg, sandboxes ...*Sandbox) {
+func crawlPackages(rootPackage string, pkgSet map[int]*Pkg, sandboxes []*Sandbox) {
 	pkgID := len(pkgSet)
 	pkgNameToID := make(map[string]int)
 	pkgQueue := make([]depth.Pkg, 0)
@@ -173,12 +174,6 @@ func crawlPackages(rootPackage string, pkgSet map[int]*Pkg, sandboxes ...*Sandbo
 		pkgQueue = pkgQueue[:lastIndex]
 		nbSb := sbQueue[lastIndex]
 		sbQueue = sbQueue[:lastIndex]
-
-		// fmt.Println(pkg.Name)
-		// for _, sb := range activeSb {
-		// 	fmt.Print(sb.Name + " ")
-		// }
-		// fmt.Println()
 
 		// Register the package if never seen before
 		var pkgStruct *Pkg
