@@ -1,14 +1,14 @@
 {
   "folders": [
-	{
-		"path": "."
-	},
-	{
-		"path": "tagging"
-	},
-	{
-		"path": "test"
-	}
-],
+    {
+      "path": "."
+    },
+    {
+      "path": "tagging"
+    },
+    {
+      "path": "test"
+    }
+  ],
   "settings": {}
 }
