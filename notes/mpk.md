@@ -36,7 +36,7 @@ A program relying on libmpk should only use MPK through libmpk.
 libmpk addresses these three main issues:
 - Vulenerability to protection-key-use-after-free: ???
 - Limited number of protection key (16)
-- Incompatible with `mprotec)` 
+- Incompatible with `mprotec` 
 
 ### protection-key-use-after-free:
 
