@@ -3,69 +3,102 @@ package main
 import (
 	"fmt"
 	"unsafe"
-	"gosb"
-	"runtime"
-	"errors"
 
 	"test/mpk"
-	"test/foo"
 )
 
 func main() {
-	gosb.Gosandbox()
-	x := sandbox["", ""] () {
-		foo.Foo()
-	}
-	// fmt.Println(x)
+	// gosb.Gosandbox()
+	// x := sandbox["", ""] () {
+	// 	foo.Foo()
+	// }
+	// // fmt.Println(x)
 
-	pkey, err := mpk.PkeyAlloc()
-	if err != nil {
-		fmt.Println("Could not allocate pkey")
-		return
-	}
+	// pkey, err := mpk.PkeyAlloc()
+	// if err != nil {
+	// 	fmt.Println("Could not allocate pkey")
+	// 	return
+	// }
 
-	pkru := mpk.AllRightsPKRU
-	mpk.WritePKRU(pkru)
+	// pkru := mpk.AllRightsPKRU
+	// mpk.WritePKRU(pkru)
 
-	fmt.Println()
-	x()
-	fmt.Println()
-	err = tagPackage("test/foo", pkey)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	// fmt.Println()
+	// x()
+	// fmt.Println()
+	// err = tagPackage("test/foo", pkey)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
 
-	pkru = pkru.Update(pkey, mpk.ProtX)
-	mpk.WritePKRU(pkru)
+	// pkru = pkru.Update(pkey, mpk.ProtX)
+	// mpk.WritePKRU(pkru)
 
-	x()
-	fmt.Println()
+	// x()
+	// fmt.Println()
+	testMPK2()
 }
 
-func tagPackage(packageName string, pkey mpk.Pkey) error {
-	id, ok := runtime.PkgToId()[packageName]
-	if !ok {
-		return errors.New("Could not find package")
+// func tagPackage(packageName string, pkey mpk.Pkey) error {
+// 	// id, ok := runtime.PkgToId()[packageName]
+// 	// if !ok {
+// 	// 	return errors.New("Could not find package")
+// 	// }
+
+// 	// for _, bloat := range runtime.PkgBloated() {
+// 	// 	if bloat.Id == id {
+// 	// 		// fmt.Println(bloat)
+// 	// 		for _, pkgInfo := range bloat.Bloating.Relocs {
+// 	// 			if pkgInfo.Addr != 0 && pkgInfo.Size != 0 {
+// 	// 				fmt.Printf("%#x  %#x\n", pkgInfo.Addr, pkgInfo.Size)
+// 	// 				err := mpk.PkeyMprotect(uintptr(pkgInfo.Addr), pkgInfo.Size, pkey)
+// 	// 				if err != nil {
+// 	// 					return errors.New("Could not mprotect package memory")
+// 	// 				}
+// 	// 			}
+// 	// 		}
+// 	// 	}
+// 	// }
+
+// 	// return nil
+// }
+
+type myStruct struct {
+	myValue int
+}
+
+func testMPK2() {
+	// Allocate a struct
+	s := new(myStruct)
+
+	// Allocate a key
+	pkey, err := mpk.PkeyAlloc()
+	check(err)
+
+	// Tag the page containing `s` with our key
+	err = mpk.PkeyMprotect(
+		(uintptr(unsafe.Pointer(s))>>12)<<12, // Align pointer to page
+		1<<12,                                // Page size
+		mpk.SysProtRWX,                       // Base protection
+		pkey,                                 // Key
+	)
+
+	fmt.Println("The value inside s is:", s.myValue)
+
+	// Remove write access
+	pkru := mpk.AllRightsPKRU
+	pkru = pkru.Update(pkey, mpk.ProtRX)
+	mpk.WritePKRU(pkru)
+
+	fmt.Println("The value inside s is:", s.myValue)
+	s.myValue = 1
+}
+
+func check(err error) {
+	if err != nil {
+		panic(err)
 	}
-
-	for _, bloat := range runtime.PkgBloated() {
-		if bloat.Id == id {
-			// fmt.Println(bloat)
-			for _, pkgInfo := range bloat.Bloating.Relocs {
-				if pkgInfo.Addr != 0 && pkgInfo.Size != 0 {
-					fmt.Printf("%#x  %#x\n", pkgInfo.Addr, pkgInfo.Size)
-					err := mpk.PkeyMprotect(uintptr(pkgInfo.Addr), pkgInfo.Size, pkey)
-					if err != nil {
-						return errors.New("Could not mprotect package memory")
-					}
-				}
-			}
-		}
-	}
-
-
-	return nil
 }
 
 func testMPK() {
@@ -87,7 +120,7 @@ func testMPK() {
 	x = 1
 	fmt.Println("Declaring var x with value:", x)
 
-	err = mpk.PkeyMprotect((uintptr(unsafe.Pointer(&x))>>12)<<12, 0x1000, pkey1)
+	err = mpk.PkeyMprotect((uintptr(unsafe.Pointer(&x))>>12)<<12, 0x1000, mpk.SysProtRWX, pkey1)
 	if err != nil {
 		fmt.Println(err.Error())
 	}

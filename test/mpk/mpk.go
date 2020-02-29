@@ -15,6 +15,9 @@ type PKRU uint32
 // Prot represents a protection access right
 type Prot uint32
 
+// SysProt represents protection of the page table entries
+type SysProt int
+
 // Syscall number on x86_64
 const (
 	sysPkeyMprotect = 329
@@ -25,8 +28,13 @@ const (
 // Protections
 const (
 	ProtRWX Prot = 0b00
-	ProtRX  Prot = 0b01
+	ProtRX  Prot = 0b10
 	ProtX   Prot = 0b11
+
+	SysProtRWX SysProt = syscall.PROT_READ | syscall.PROT_WRITE | syscall.PROT_EXEC
+	SysProtRX  SysProt = syscall.PROT_READ | syscall.PROT_EXEC
+	SysProtRW  SysProt = syscall.PROT_READ | syscall.PROT_WRITE
+	SysProtR   SysProt = syscall.PROT_READ
 )
 
 // AllRightsPKRU is the default value of the PKRU that allows everything
@@ -72,11 +80,11 @@ func PkeyFree(pkey Pkey) error {
 	return nil
 }
 
-// PkeyMprotect tags pages int [addr, addr + len -1] with the given pkey.
-// --> Currently deactivated: Permission on page table can also be update at the same time.
+// PkeyMprotect tags pages within [addr, addr + len -1] with the given pkey.
+// Permission on page table can also be update at the same time.
 // Note that addr must be aligned to a page boundary.
-func PkeyMprotect(addr uintptr, len uint64, pkey Pkey) error {
-	result, _, _ := syscall.Syscall6(sysPkeyMprotect, addr, uintptr(len), syscall.PROT_READ|syscall.PROT_WRITE|syscall.PROT_EXEC, uintptr(pkey), 0, 0)
+func PkeyMprotect(addr uintptr, len uint64, sysProt SysProt, pkey Pkey) error {
+	result, _, _ := syscall.Syscall6(sysPkeyMprotect, addr, uintptr(len), uintptr(sysProt), uintptr(pkey), 0, 0)
 	if result != 0 {
 		return errors.New("Could not update memory access rights")
 	}
