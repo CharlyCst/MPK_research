@@ -13,7 +13,7 @@ var MpkgConst int
 
 func Foo() {
 		sandbox["",""] () {
-			a := /*&MpkgType{}*/ new(int)
-			fmt.Println("Sandboxed lib", a)
+			// a := /*&MpkgType{}*/ new(int)
+			fmt.Println("Sandboxed lib", MpkgConst)
 		}()
 }
