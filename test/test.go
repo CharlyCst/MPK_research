@@ -69,8 +69,8 @@ type myStruct struct {
 }
 
 func testMPK2() {
-	// Allocate a struct
-	s := new(myStruct)
+	// Allocate an array
+	a := make([]int, 1, 10000)
 
 	// Allocate a key
 	pkey, err := mpk.PkeyAlloc()
@@ -78,21 +78,24 @@ func testMPK2() {
 
 	// Tag the page containing `s` with our key
 	err = mpk.PkeyMprotect(
-		(uintptr(unsafe.Pointer(s))>>12)<<12, // Align pointer to page
+		(uintptr(unsafe.Pointer(&a[0]))>>12)<<12, // Align pointer to page
 		1<<12,                                // Page size
 		mpk.SysProtRWX,                       // Base protection
 		pkey,                                 // Key
 	)
 
-	fmt.Println("The value inside s is:", s.myValue)
+	fmt.Printf("Memory address of a[0]:  %p\n", a)
+	fmt.Println("The value inside a[0]:  ", a[0])
 
-	// Remove write access
+	// Update a[0], then remove write access
+	a[0] = 1
+
 	pkru := mpk.AllRightsPKRU
 	pkru = pkru.Update(pkey, mpk.ProtRX)
 	mpk.WritePKRU(pkru)
 
-	fmt.Println("The value inside s is:", s.myValue)
-	s.myValue = 1
+	fmt.Println("The value inside a[0]:  ", a[0])
+	a[0] = 2
 }
 
 func check(err error) {
