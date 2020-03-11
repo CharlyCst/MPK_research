@@ -3,3 +3,5 @@ test/test.o
 test/x86_64
 test/plan9
 tagging/tagging
+
+test/mpk/*
